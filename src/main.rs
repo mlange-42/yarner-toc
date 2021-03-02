@@ -63,7 +63,36 @@ fn extract_headings(
     headings
 }
 
-fn replace_toc_marker(_document: &mut Document, _toc: Vec<(String, usize)>, _placeholder: &str) {}
+fn replace_toc_marker(document: &mut Document, toc: Vec<(String, usize)>, placeholder: &str) {
+    for node in document.nodes.iter_mut() {
+        if let Node::Text(block) = node {
+            for line_idx in 0..block.text.len() {
+                if block.text[line_idx].contains(placeholder) {
+                    let toc_lines = generate_toc(&toc);
+                    block.text = block
+                        .text
+                        .iter()
+                        .take(line_idx)
+                        .chain(toc_lines.iter())
+                        .chain(block.text.iter().skip(line_idx + 1))
+                        .cloned()
+                        .collect();
+                    break;
+                }
+            }
+        }
+    }
+}
+
+fn generate_toc(toc: &[(String, usize)]) -> Vec<String> {
+    let mut result = vec![];
+
+    for (heading, level) in toc {
+        result.push(format!("{}* {}", "  ".repeat(*level), heading));
+    }
+
+    result
+}
 
 fn heading_level(line: &str) -> Option<(&str, usize)> {
     if line.starts_with('#') {
@@ -71,14 +100,11 @@ fn heading_level(line: &str) -> Option<(&str, usize)> {
         while level < line.len() && line[level..].starts_with('#') {
             level += 1;
         }
-        let mut str_start = level;
-        while str_start < line.len() && line[str_start..].starts_with(' ') {
-            str_start += 1;
-        }
-        if str_start == line.len() {
+        let heading = line[level..].trim();
+        if heading.is_empty() {
             None
         } else {
-            Some((&line[str_start..], level))
+            Some((heading, level))
         }
     } else {
         None
