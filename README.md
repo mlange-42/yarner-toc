@@ -32,11 +32,13 @@ The plugin allows for different options, which are all optional:
 
 ```toml
 [plugin.toc]
+placeholder = "[[_TOC_]]"
 min-level = 2
 max-level = 5
 ```
 
-| Option             | Details                          | Default |
-|--------------------|----------------------------------|---------|
-| `min-level`        | Minimum heading level to include | `2`     |
-| `max-level`        | Maximum heading level to include | `5`     |
+| Option             | Details                             | Default     |
+|--------------------|-------------------------------------|-------------|
+| `placeholder`      | Placeholder to replace with the TOC | `[[_TOC_]]` |
+| `min-level`        | Minimum heading level to include    | `2`         |
+| `max-level`        | Maximum heading level to include    | `5`         |

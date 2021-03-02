@@ -1,5 +1,5 @@
 use std::error::Error;
-use yarner_lib::Context;
+use yarner_lib::{Context, Document, Node};
 
 fn main() {
     std::process::exit(match run() {
@@ -12,15 +12,80 @@ fn main() {
 }
 
 fn run() -> Result<(), Box<dyn Error>> {
-    let data = yarner_lib::parse_input()?;
+    let mut data = yarner_lib::parse_input()?;
+    let config = &data.context.config;
 
     check_version(&data.context);
+
+    let placeholder = config
+        .get("placeholder")
+        .and_then(|s| s.as_str())
+        .unwrap_or("[[_TOC_]]");
+
+    let min_level = config
+        .get("min-level")
+        .and_then(|s| s.as_integer())
+        .unwrap_or(2);
+
+    let max_level = config
+        .get("max-level")
+        .and_then(|s| s.as_integer())
+        .unwrap_or(5);
+
+    for (_, mut doc) in data.documents.iter_mut() {
+        let headings = extract_headings(&doc, min_level as usize, max_level as usize);
+        replace_toc_marker(&mut doc, headings, placeholder);
+    }
 
     yarner_lib::write_output(&data)?;
     Ok(())
 }
 
-pub fn check_version(context: &Context) {
+fn extract_headings(
+    document: &Document,
+    min_level: usize,
+    max_level: usize,
+) -> Vec<(String, usize)> {
+    let mut headings: Vec<(String, usize)> = Vec::new();
+
+    for node in document.nodes.iter() {
+        if let Node::Text(block) = node {
+            for line in &block.text {
+                if let Some((heading, level)) = heading_level(&line) {
+                    if level >= min_level && level <= max_level {
+                        headings.push((heading.to_owned(), level - min_level));
+                    }
+                }
+            }
+        }
+    }
+
+    headings
+}
+
+fn replace_toc_marker(_document: &mut Document, _toc: Vec<(String, usize)>, _placeholder: &str) {}
+
+fn heading_level(line: &str) -> Option<(&str, usize)> {
+    if line.starts_with('#') {
+        let mut level = 1;
+        while level < line.len() && line[level..].starts_with('#') {
+            level += 1;
+        }
+        let mut str_start = level;
+        while str_start < line.len() && line[str_start..].starts_with(' ') {
+            str_start += 1;
+        }
+        if str_start == line.len() {
+            None
+        } else {
+            Some((&line[str_start..], level))
+        }
+    } else {
+        None
+    }
+}
+
+fn check_version(context: &Context) {
     if context.yarner_version != yarner_lib::YARNER_VERSION {
         eprintln!(
             "  Warning: The {} plugin was built against version {} of Yarner, \
@@ -29,5 +94,30 @@ pub fn check_version(context: &Context) {
             yarner_lib::YARNER_VERSION,
             context.yarner_version
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::heading_level;
+
+    #[test]
+    fn no_heading() {
+        assert_eq!(heading_level("Not a heading"), None);
+    }
+
+    #[test]
+    fn no_label_heading() {
+        assert_eq!(heading_level("###"), None);
+    }
+
+    #[test]
+    fn heading_level_with_space() {
+        assert_eq!(heading_level("## Heading"), Some(("Heading", 2)));
+    }
+
+    #[test]
+    fn heading_level_without_space() {
+        assert_eq!(heading_level("##Heading"), Some(("Heading", 2)));
     }
 }
