@@ -34,7 +34,7 @@ fn run() -> Result<(), Box<dyn Error>> {
 
     for (_, mut doc) in data.documents.iter_mut() {
         let headings = extract_headings(&doc, min_level as usize, max_level as usize);
-        replace_toc_marker(&mut doc, headings, placeholder);
+        replace_toc_marker(&mut doc, &headings, placeholder);
     }
 
     yarner_lib::write_output(&data)?;
@@ -63,7 +63,7 @@ fn extract_headings(
     headings
 }
 
-fn replace_toc_marker(document: &mut Document, toc: Vec<(String, usize)>, placeholder: &str) {
+fn replace_toc_marker(document: &mut Document, toc: &[(String, usize)], placeholder: &str) {
     for node in document.nodes.iter_mut() {
         if let Node::Text(block) = node {
             for line_idx in 0..block.text.len() {
@@ -126,6 +126,7 @@ fn check_version(context: &Context) {
 #[cfg(test)]
 mod tests {
     use crate::heading_level;
+    use yarner_lib::{Document, Node, TextBlock};
 
     #[test]
     fn no_heading() {
@@ -145,5 +146,41 @@ mod tests {
     #[test]
     fn heading_level_without_space() {
         assert_eq!(heading_level("##Heading"), Some(("Heading", 2)));
+    }
+
+    #[test]
+    fn generate_toc() {
+        let toc = vec![("H1".to_string(), 0), ("H2".to_string(), 1)];
+        let lines = super::generate_toc(&toc);
+
+        assert_eq!(lines, vec!["* H1".to_string(), "  * H2".to_string()])
+    }
+
+    #[test]
+    fn replace_marker() {
+        let text = vec![
+            "test".to_string(),
+            "[[_TOC_]]".to_string(),
+            "test".to_string(),
+        ];
+        let mut doc = Document {
+            nodes: vec![Node::Text(TextBlock { text })],
+            newline: "\n".to_string(),
+        };
+        let toc = vec![("H1".to_string(), 0), ("H2".to_string(), 1)];
+        super::replace_toc_marker(&mut doc, &toc, "[[_TOC_]]");
+
+        let expected = vec![
+            "test".to_string(),
+            "* H1".to_string(),
+            "  * H2".to_string(),
+            "test".to_string(),
+        ];
+
+        assert_eq!(doc.nodes.len(), 1);
+        assert!(matches!(doc.nodes[0], Node::Text(_)));
+        if let Node::Text(block) = &doc.nodes[0] {
+            assert_eq!(block.text, expected);
+        }
     }
 }
