@@ -33,7 +33,8 @@ fn run() -> Result<(), Box<dyn Error>> {
         .unwrap_or(5);
 
     for (_, mut doc) in data.documents.iter_mut() {
-        let headings = extract_headings(&doc, min_level as usize, max_level as usize);
+        let headings =
+            anchor_and_extract_headings(&mut doc, min_level as usize, max_level as usize);
         replace_toc_marker(&mut doc, &headings, placeholder);
     }
 
@@ -41,21 +42,30 @@ fn run() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn extract_headings(
-    document: &Document,
+fn anchor_and_extract_headings(
+    document: &mut Document,
     min_level: usize,
     max_level: usize,
 ) -> Vec<(String, usize)> {
     let mut headings: Vec<(String, usize)> = Vec::new();
 
-    for node in document.nodes.iter() {
+    for node in document.nodes.iter_mut() {
         if let Node::Text(block) = node {
-            for line in &block.text {
-                if let Some((heading, level)) = heading_level(&line) {
+            let mut idx = 0;
+            while idx < block.text.len() {
+                if let Some((heading, level)) = heading_level(&block.text[idx]) {
                     if level >= min_level && level <= max_level {
                         headings.push((heading.to_owned(), level - min_level));
+
+                        let anchor = heading_anchor(heading);
+                        block.text.insert(
+                            idx,
+                            format!("<a id=\"{}\" name=\"{}\"></a>", anchor, anchor),
+                        );
+                        idx += 1;
                     }
                 }
+                idx += 1;
             }
         }
     }
@@ -88,7 +98,12 @@ fn generate_toc(toc: &[(String, usize)]) -> Vec<String> {
     let mut result = vec![];
 
     for (heading, level) in toc {
-        result.push(format!("{}* {}", "  ".repeat(*level), heading));
+        result.push(format!(
+            "{}* [{}](#{})",
+            "  ".repeat(*level),
+            heading,
+            heading_anchor(heading)
+        ));
     }
 
     result
@@ -111,6 +126,14 @@ fn heading_level(line: &str) -> Option<(&str, usize)> {
     }
 }
 
+fn heading_anchor(heading: &str) -> String {
+    heading
+        .to_lowercase()
+        .chars()
+        .map(|ch| if ch.is_alphanumeric() { ch } else { '-' })
+        .collect()
+}
+
 fn check_version(context: &Context) {
     if context.yarner_version != yarner_lib::YARNER_VERSION {
         eprintln!(
@@ -127,6 +150,19 @@ fn check_version(context: &Context) {
 mod tests {
     use crate::heading_level;
     use yarner_lib::{Document, Node, TextBlock};
+
+    #[test]
+    fn format_anchor() {
+        assert_eq!(super::heading_anchor("A heading"), "a-heading".to_string());
+        assert_eq!(
+            super::heading_anchor("Heading - with... punctuations"),
+            "heading---with----punctuations".to_string()
+        );
+        assert_eq!(
+            super::heading_anchor("Heading with 123 numbers"),
+            "heading-with-123-numbers".to_string()
+        );
+    }
 
     #[test]
     fn no_heading() {
@@ -153,7 +189,10 @@ mod tests {
         let toc = vec![("H1".to_string(), 0), ("H2".to_string(), 1)];
         let lines = super::generate_toc(&toc);
 
-        assert_eq!(lines, vec!["* H1".to_string(), "  * H2".to_string()])
+        assert_eq!(
+            lines,
+            vec!["* [H1](#h1)".to_string(), "  * [H2](#h2)".to_string()]
+        )
     }
 
     #[test]
@@ -172,8 +211,8 @@ mod tests {
 
         let expected = vec![
             "test".to_string(),
-            "* H1".to_string(),
-            "  * H2".to_string(),
+            "* [H1](#h1)".to_string(),
+            "  * [H2](#h2)".to_string(),
             "test".to_string(),
         ];
 
