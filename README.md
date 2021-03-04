@@ -1,6 +1,6 @@
 # yarner-toc
 
-[![Build Status](https://travis-ci.com/mlange-42/yarner-toc.svg?branch=main)](https://travis-ci.com/mlange-42/yarner-toc)
+[![Tests](https://github.com/mlange-42/yarner-toc/actions/workflows/tests.yml/badge.svg)](https://github.com/mlange-42/yarner-toc/actions/workflows/tests.yml)
 
 A [Yarner](https://github.com/mlange-42/yarner) plugin to generate a Table of Content.
 
