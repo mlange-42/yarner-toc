@@ -1,6 +1,7 @@
 # yarner-toc
 
-[![Tests](https://github.com/mlange-42/yarner-toc/actions/workflows/tests.yml/badge.svg)](https://github.com/mlange-42/yarner-toc/actions/workflows/tests.yml)
+[![Test status](https://github.com/mlange-42/yarner-toc/actions/workflows/tests.yml/badge.svg)](https://github.com/mlange-42/yarner-toc/actions/workflows/tests.yml)
+[![Crate](https://img.shields.io/crates/v/yarner-toc.svg)](https://crates.io/crates/yarner-toc)
 
 A [Yarner](https://github.com/mlange-42/yarner) plugin to generate a Table of Content.
 
@@ -15,7 +16,7 @@ A [Yarner](https://github.com/mlange-42/yarner) plugin to generate a Table of Co
 **Using `cargo`**
 
 ```
-> cargo install --git https://github.com/mlange-42/yarner-toc.git --branch main
+> cargo install yarner-toc
 ```
 
 ## Usage
